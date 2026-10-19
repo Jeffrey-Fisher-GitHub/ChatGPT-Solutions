@@ -150,7 +150,7 @@ function updateUI(){const s=state(day);for(const id of ['population','shelters',
 function setDay(n){day=clamp(n,1,DAYS);progress=0;updateUI();draw(day,progress,0);}
 function animate(now){const dt=Math.min((now-last)/1000,.12);last=now;
  if(playing){progress+=dt*speed/SECONDS;
- while(progress>=1){progress--;if(day>=DAYS){playing=false;progress=1;break;}day++;updateUI();}
+ while(progress>=1){progress--;if(recorder&&recordEndDay!==null&&day>=recordEndDay){progress=1;playing=false;stopRecord();break;}if(day>=DAYS){playing=false;progress=1;break;}day++;updateUI();}
  if(recorder&&recordEndDay!==null&&day>=recordEndDay&&progress>=.999){stopRecord();}
  }
  draw(day,progress,now);$('clock').textContent='Day '+day+' / 730 · 00:'+String(Math.min(15,Math.floor(progress*15))).padStart(2,'0')+' / 00:15';
