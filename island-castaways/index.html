@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castaways — 730 Days</title>
+<style>
+:root{color-scheme:dark;--bg:#081522;--panel:#102436;--line:#294155;--accent:#73debd}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#1c4251,var(--bg) 65%);font:15px/1.5 system-ui,Segoe UI,Arial;color:#e4f2f4}
+main{max-width:1380px;margin:auto;padding:22px}header{display:flex;align-items:baseline;justify-content:space-between;gap:15px;flex-wrap:wrap}
+h1{font-size:clamp(25px,3vw,38px);margin:0;letter-spacing:-.035em}header p{margin:0;color:#a5c4cd}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px;margin-top:18px}
+.stage,.panel{background:#102535;border:1px solid #335064;border-radius:16px;overflow:hidden;box-shadow:0 12px 32px #0003}
+canvas{width:100%;height:auto;display:block;aspect-ratio:16/9;background:#86ced2}
+.controls{padding:16px;display:grid;gap:12px}.buttons{display:flex;gap:8px;flex-wrap:wrap}
+button,select{background:#1c3c4f;color:#f0f7fa;border:1px solid #527081;border-radius:9px;padding:9px 13px;font:inherit;cursor:pointer}
+button:hover{background:#29536a}button.primary{background:#218669;border-color:#40b48e}button:disabled{opacity:.4;cursor:not-allowed}
+input[type=range]{width:100%;accent-color:var(--accent)}.timeline{display:flex;justify-content:space-between;color:#aec8d0;font-size:13px}
+.panel{padding:19px}.panel h2{margin:0 0 14px;font-size:20px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.metric{background:#183548;padding:12px;border-radius:10px}.metric strong{display:block;font-size:22px;color:#fff}.metric span{font-size:12px;color:#b0c9d2}
+progress{width:100%;height:11px;accent-color:var(--accent)}.story{min-height:86px;border-left:3px solid #63d5af;padding-left:13px;margin:18px 0}
+.legend{font-size:13px;color:#aec8d0}small{color:#a7c2ca}footer{margin-top:18px;font-size:13px;color:#a7c2ca}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body><main>
+<header><div><h1>CASTAWAYS <span style="color:#73debd">/ 730 DAYS</span></h1><p>A procedural visual survival chronicle · 1,200-acre tropical island · 12 survivors</p></div><small id="clock">Day 1 / 730 · 00:00 / 00:15</small></header>
+<div class="grid"><section class="stage">
+<canvas id="world" width="1280" height="720" aria-label="Animated tropical island with mountain, fresh-water river, camp and survivors"></canvas>
+<div class="controls">
+<div class="buttons"><button class="primary" id="play">▶ Play</button><button id="back">◀ Day</button><button id="next">Day ▶</button><button id="reset">↺ Restart</button>
+<select id="speed" aria-label="Playback speed"><option value="1">1× (15 seconds/day)</option><option value="5">5×</option><option value="30">30×</option><option value="120">120×</option></select></div>
+<input type="range" id="day" min="1" max="730" value="1" aria-label="Day of survival">
+<div class="timeline"><span>Day 1 · Crash landing</span><span id="timeline">Day 1 of 730</span><span>Day 730 · Two years</span></div>
+<div class="buttons"><button id="recordDay">● Record 15-sec day (WebM)</button><button id="recordAll">● Record all 730 days (WebM)</button><button id="stopRecording" disabled>■ Stop recording</button><button id="export">↓ Export survival log (JSON)</button></div>
+<small>Recording runs in real time. All 730 days at 1× take 3 hours, 2 minutes, 30 seconds, before encoding overhead. Keep the tab active and your computer awake. WebM recording requires a compatible browser.</small>
+</div></section>
+<aside class="panel"><h2 id="chapter">The first landing</h2><div class="metrics">
+<div class="metric"><strong id="population">12</strong><span>Survivors</span></div><div class="metric"><strong id="shelters">0</strong><span>Shelters</span></div>
+<div class="metric"><strong id="food">0</strong><span>Food stores (days)</span></div><div class="metric"><strong id="water">0</strong><span>Clean water (days)</span></div>
+<div class="metric"><strong id="wood">0</strong><span>Timber units harvested</span></div><div class="metric"><strong id="gardens">0</strong><span>Garden plots</span></div>
+</div><div class="story"><strong id="eventTitle">Arrival</strong><p id="eventText">The castaways survey the beach and search for clean water.</p></div>
+<label for="morale">Community morale</label><progress id="morale" max="100" value="50"></progress><div class="legend" id="status">Fish · coconuts · wild fruit · freshwater · harvestable forest</div>
+<hr style="border:0;border-top:1px solid #355064;margin:18px 0"><h2>People on the island</h2><p class="legend">Avery, Maya, Eli, Sofia, Noah, Zoe, Marcus, Lina, Priya, Theo, Iris and Kai.</p>
+<p class="legend">Illustrative, deterministic story simulation—not a real-world survival prediction. No deaths are scripted; resources and projects change over time.</p></aside></div>
+<footer>All visuals are drawn procedurally in Canvas 2D. No external assets, libraries, API keys or network connection required.</footer>
+</main>
+<script>
+"use strict";
+const DAYS=730, SECONDS=15, canvas=document.getElementById('world'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const rnd=(x)=>{const a=Math.sin(x*127.1+39.9)*43758.5453;return a-Math.floor(a)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+const names=['Avery','Maya','Eli','Sofia','Noah','Zoe','Marcus','Lina','Priya','Theo','Iris','Kai'];
+const milestones=[
+[1,'The first landing','Twelve survivors leave the damaged aircraft and count their supplies. A safe camp becomes the immediate priority.'],
+[3,'Freshwater found','A mountain-fed stream offers a reliable starting point for drinking water. Containers are cleaned and filled.'],
+[7,'Fishing crew formed','The survivors make primitive lines and traps while gathering fallen coconuts and wild fruit.'],
+[15,'The first shelter','Branches, broad leaves and salvaged material form a rainproof sleeping area.'],
+[30,'A village begins','The first permanent huts appear beside the freshwater river. The group establishes daily jobs.'],
+[60,'Planting season','Seeds from edible fruits and vegetables are cultivated in clearings near the river.'],
+[90,'Monsoon lessons','Storms damage roofs and food stores. Better drainage and raised storage become priorities.'],
+[120,'The lookout trail','A footpath rises toward the mountain and a coastal lookout is built.'],
+[180,'Half a year','The castaways mark six months, with steadier fishing and an expanding village.'],
+[240,'Building a canoe','A dugout canoe improves nearshore fishing and travel around sheltered coves.'],
+[300,'A harvest festival','The first reliable vegetable harvest reduces dependence on fishing alone.'],
+[365,'One year stranded','A full year has passed. The survivors maintain gardens, a workshop, a smokehouse and a signal fire.'],
+[450,'Hard-season planning','The group diversifies crops, reinforces shelters and improves sanitation.'],
+[540,'A thriving settlement','The little village has organized water, food gathering, fishing, timber and construction teams.'],
+[630,'Hope beyond the horizon','Signal fires and shoreline watch rotations continue as the settlement matures.'],
+[730,'Two years on the island','Day 730: twelve people remain together, still watching for rescue while living off the land.']
+];
+function state(day){
+ day=clamp(Math.round(day),1,DAYS);
+ let milestone=milestones[0];for(const m of milestones){if(m[0]<=day)milestone=m;}
+ const weather=rnd(Math.floor(day/5)*4+17);
+ const seasonal=Math.sin(day/57);
+ const shelters=day<15?0:clamp(1+Math.floor((day-15)/55),1,9);
+ const gardens=day<60?0:Math.min(9,1+Math.floor((day-60)/75));
+ return {day,population:12,shelters,gardens,wood:Math.max(0,Math.floor(day*.37)-Math.floor(day/55)*4),
+ food:clamp(Math.floor(day/11)+Math.round(2*seasonal),0,22),
+ water:day<3?0:clamp(2+Math.floor(day/35),2,20),morale:clamp(Math.round(43+18*(1-Math.exp(-day/130))+9*Math.sin(day/42)),20,92),
+ weather:weather>.82?'rain':weather<.12?'cloud':'sun',chapter:milestone[1],event:milestone[2],
+ eventTitle:milestone[1]};
+}
+function gradient(y0,y1,colors){const g=ctx.createLinearGradient(0,y0,0,y1);for(const [t,color] of colors)g.addColorStop(t,color);return g;}
+function polygon(points,fill,stroke=null){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(...points[i]);ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}}
+function circle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+function line(points,color,width=2){ctx.beginPath();ctx.moveTo(...points[0]);for(let i=1;i<points.length;i++)ctx.lineTo(...points[i]);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+function tree(x,y,s,seed,palm=false){
+ ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+ if(palm){
+ line([[0,0],[7,-36],[16,-88]],'#5b3724',10);
+ for(let i=0;i<7;i++){const a=i*Math.PI*2/7;const endX=16+Math.cos(a)*46,endY=-88+Math.sin(a)*17;
+ line([[16,-88],[lerp(16,endX,.5),-100],[endX,endY]],i%2?'#2a7250':'#236347',8);}
+ circle(13,-87,5,'#986a3b');circle(22,-85,5,'#79512b');
+ }else{line([[0,0],[0,-55]],'#523c27',10);for(let j=0;j<4;j++)circle((rnd(seed+j)-.5)*24,-55-j*10,24-j*2,j%2?'#21694a':'#1a5b41');}
+ ctx.restore();
+}
+function hut(x,y,s,seed){ctx.save();ctx.translate(x,y);ctx.scale(s,s);polygon([[-30,0],[-30,-37],[30,-37],[30,0]],'#a78150');polygon([[-38,-35],[0,-67],[38,-35]],'#80643d');polygon([[-10,0],[-10,-30],[9,-30],[9,0]],'#402f25');line([[-38,-35],[0,-67],[38,-35]],'#b9a16a',3);ctx.restore();}
+function person(x,y,scale,phase,color){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);const walk=Math.sin(phase)*5;circle(0,-25,6,'#ca9573');line([[0,-19],[0,-5]],color,7);line([[0,-5],[-7+walk,9]],'#2a3436',4);line([[0,-5],[7-walk,9]],'#2a3436',4);line([[0,-17],[-10, -9+walk*.4]],'#ca9573',3);line([[0,-17],[10,-8-walk*.4]],'#ca9573',3);ctx.restore();}
+function draw(day,progress,now){
+ const s=state(day),W=1280,H=720,t=progress*SECONDS;
+ const daylight=.76+.24*Math.sin(Math.PI*progress);
+ ctx.clearRect(0,0,W,H);
+ ctx.fillStyle=gradient(0,480,[[0,'#6bb2c2'],[.65,'#b8e6cf'],[1,'#e3e1bd']]);ctx.fillRect(0,0,W,480);
+ circle(1005+40*Math.sin(progress*Math.PI),115,42,'#fff0aa');
+ for(let i=0;i<7;i++){const x=(130*i+day*.33+i*73)%1460-90,y=105+i%3*35;ctx.fillStyle='#e5f0e6a9';ctx.beginPath();ctx.ellipse(x,y,65,17,0,0,7);ctx.fill();}
+ polygon([[0,410],[70,340],[150,312],[244,242],[318,212],[380,270],[460,312],[565,354],[635,410]],'#4d8080');
+ polygon([[110,390],[275,225],[365,94],[476,258],[600,407]],'#447771');
+ polygon([[309,207],[365,94],[410,192],[379,177],[361,188],[344,175]],'#e6e7d7');
+ polygon([[420,414],[500,302],[582,265],[715,405]],'#588778');
+ ctx.fillStyle=gradient(380,720,[[0,'#2e8f96'],[1,'#155c74']]);ctx.fillRect(0,380,W,340);
+ polygon([[0,385],[170,400],[300,379],[400,390],[520,377],[670,407],[830,415],[1000,395],[1120,410],[1280,390],[1280,720],[0,720]],'#e5c28e');
+ polygon([[0,394],[205,420],[420,424],[605,465],[775,495],[960,500],[1120,535],[1280,585],[1280,720],[0,720]],'#4c9863');
+ polygon([[0,630],[180,602],[290,615],[423,590],[600,646],[720,622],[860,677],[1040,648],[1280,710],[1280,720],[0,720]],'#31734f');
+ // Stream descends from a mountain spring, splits by the village and reaches the sea.
+ line([[370,300],[406,350],[446,399],[470,450],[520,478],[540,525],[628,558],[687,610],[752,720]],'#7bd2d7',28);
+ line([[370,300],[406,350],[446,399],[470,450],[520,478],[540,525],[628,558],[687,610],[752,720]],'#c6f5e4',8);
+ for(let i=0;i<40;i++){const x=(i*173+31)%1280,y=406+(i*79)%275;if(x>450&&x<770&&y>465)continue;tree(x,y,.55+rnd(i+5)*.38,i,false);}
+ for(let i=0;i<8;i++)tree(95+i*140,480+((i*61)%100),.9+(i%3)*.14,i,true);
+ // Crash wreck remains visible beside the high tide line.
+ ctx.save();ctx.translate(1020,462);ctx.rotate(-.08);polygon([[0,0],[95,-15],[142,-8],[76,9]],'#c3d0c7');polygon([[34,-6],[66,-49],[83,-48],[83,-4]],'#929c9c');ctx.restore();
+ const n=s.shelters;for(let i=0;i<n;i++){const x=782+(i%5)*83,y=544+Math.floor(i/5)*78;hut(x,y,.7,i);}
+ if(day>=120){line([[1070,540],[1100,420],[1078,320]],'#936e41',6);polygon([[1078,320],[1140,339],[1078,358]],'#efe3b0');}
+ if(day>=365){polygon([[900,480],[950,480],[955,512],[902,512]],'#9b7348');line([[900,480],[950,480]],'#b6935b',5);}
+ for(let g=0;g<s.gardens;g++){const x=55+(g%5)*75,y=576+Math.floor(g/5)*52;polygon([[x,y],[x+58,y],[x+55,y+25],[x-3,y+25]],'#705b35');for(let v=0;v<4;v++){line([[x+v*14+4,y+17],[x+v*14+4,y+7]],'#6aca61',3);circle(x+v*14+3,y+5,4,'#4f9d40');}}
+ const colors=['#a8513e','#3d7892','#efb14c','#865d9c','#4b9e72','#ce7354'];
+ for(let i=0;i<12;i++){const x=600+(i%6)*91+Math.sin(t*.42+i)*22,y=550+Math.floor(i/6)*70+Math.cos(t*.52+i)*11;person(x,y,.81,t*2+i,colors[i%6]);}
+ if(day>4){circle(715,513,11,'#f1a43c');circle(717,507,6,'#ffe491');for(let k=0;k<3;k++)line([[703+k*8,531],[730-k*4,527]],'#6b4026',3);}
+ for(let f=0;f<6;f++){const fx=75+((f*143+day*3+t*34)%390),fy=676+Math.sin(t*1.2+f)*10;polygon([[fx,fy],[fx-12,fy-5],[fx-12,fy+5]],'#8bc3ce');}
+ if(s.weather==='rain'){ctx.strokeStyle='#d3eafa88';ctx.lineWidth=2;for(let i=0;i<130;i++){let x=(i*97+t*95)%1360-40,y=(i*79+t*210)%800-40;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-12,y+26);ctx.stroke();}}
+ if(s.weather==='cloud'){ctx.fillStyle='#1e364522';ctx.fillRect(0,0,W,H);}
+ // Film frame and on-screen captions.
+ ctx.fillStyle='#071c2cba';ctx.fillRect(0,0,W,68);ctx.fillRect(0,625,W,95);
+ ctx.fillStyle='#f5f3e8';ctx.font='700 30px system-ui';ctx.fillText('DAY '+String(day).padStart(3,'0')+' / 730',33,44);
+ ctx.font='20px system-ui';ctx.fillStyle='#b5e7d9';ctx.fillText(s.chapter,290,43);
+ ctx.fillStyle='#e7f1eb';ctx.font='18px system-ui';ctx.fillText('12 SURVIVORS  •  '+s.shelters+' SHELTERS  •  '+s.gardens+' GARDENS  •  '+s.weather.toUpperCase(),34,655);
+ ctx.font='18px system-ui';let words=s.event.split(' '),current='',lines=[];
+ for(const word of words){if(ctx.measureText(current+' '+word).width>1170){lines.push(current);current=word;}else current+=(current?' ':'')+word;}lines.push(current);
+ lines.slice(0,2).forEach((v,i)=>ctx.fillText(v,34,685+i*23));
+ ctx.fillStyle='#73debd';ctx.fillRect(0,716,W*progress,4);
+}
+let day=1,progress=0,playing=false,speed=1,last=performance.now(),recorder=null,chunks=[],recordEndDay=null;
+function updateUI(){const s=state(day);for(const id of ['population','shelters','food','water','wood','gardens'])$(id).textContent=s[id];
+ $('morale').value=s.morale;$('chapter').textContent=s.chapter;$('eventTitle').textContent=s.eventTitle;
+ $('eventText').textContent=s.event;$('status').textContent='Weather: '+s.weather+' · fresh mountain stream · tropical forest · reef fishing';
+ $('day').value=day;$('timeline').textContent='Day '+day+' of 730';
+ $('clock').textContent='Day '+day+' / 730 · 00:'+String(Math.floor(progress*SECONDS)).padStart(2,'0')+' / 00:15';
+ $('play').textContent=playing?'Ⅱ Pause':'▶ Play';
+}
+function setDay(n){day=clamp(n,1,DAYS);progress=0;updateUI();draw(day,progress,0);}
+function animate(now){const dt=Math.min((now-last)/1000,.12);last=now;
+ if(playing){progress+=dt*speed/SECONDS;
+ while(progress>=1){progress--;if(day>=DAYS){playing=false;progress=1;break;}day++;updateUI();}
+ if(recorder&&recordEndDay!==null&&day>=recordEndDay&&progress>=.999){stopRecord();}
+ }
+ draw(day,progress,now);$('clock').textContent='Day '+day+' / 730 · 00:'+String(Math.min(15,Math.floor(progress*15))).padStart(2,'0')+' / 00:15';
+ requestAnimationFrame(animate);}
+$('play').onclick=()=>{playing=!playing;if(day===DAYS&&progress===1){day=1;progress=0;}updateUI();};
+$('back').onclick=()=>setDay(day-1);$('next').onclick=()=>setDay(day+1);
+$('reset').onclick=()=>{playing=false;setDay(1);};
+$('day').oninput=e=>setDay(Number(e.target.value));
+$('speed').onchange=e=>{speed=Number(e.target.value);};
+$('export').onclick=()=>download(new Blob([JSON.stringify({islandAcres:1200,survivors:names,days:Array.from({length:DAYS},(_,i)=>state(i+1))},null,2)],{type:'application/json'}),'castaways-730-day-log.json');
+function download(blob,name){let a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+function record(all){
+ if(!('MediaRecorder' in window)||!canvas.captureStream){alert('This browser does not support canvas WebM recording. Try recent Chrome or Edge.');return;}
+ if(recorder)return;
+ playing=true;speed=1;$('speed').value='1';progress=0;if(all)day=1;
+ recordEndDay=all?730:day;updateUI();
+ chunks=[];const stream=canvas.captureStream(30);
+ const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+ try{recorder=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:3500000}:{});}catch(err){alert('Unable to begin recording: '+err.message);recorder=null;return;}
+ const startDay=day;
+ recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+ recorder.onstop=()=>{stream.getTracks().forEach(t=>t.stop());const blob=new Blob(chunks,{type:mime||'video/webm'});download(blob,all?'castaways-days-001-to-730.webm':'castaways-day-'+String(startDay).padStart(3,'0')+'.webm');
+ recorder=null;recordEndDay=null;$('recordDay').disabled=false;$('recordAll').disabled=false;$('stopRecording').disabled=true;playing=false;updateUI();};
+ recorder.start(1000);$('recordDay').disabled=true;$('recordAll').disabled=true;$('stopRecording').disabled=false;
+}
+function stopRecord(){if(recorder&&recorder.state!=='inactive')recorder.stop();}
+$('recordDay').onclick=()=>record(false);$('recordAll').onclick=()=>record(true);$('stopRecording').onclick=stopRecord;
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&recorder)console.warn('Browser may throttle video capture in a background tab.');});
+updateUI();requestAnimationFrame(animate);
+</script></body></html>
