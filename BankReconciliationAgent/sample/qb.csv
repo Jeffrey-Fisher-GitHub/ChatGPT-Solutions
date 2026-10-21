@@ -1,0 +1,8 @@
+id,date,description,amount
+Q001,2026-06-05,Fiserv,100.00
+Q002,2026-06-05,Merchant Settlement,200.00
+Q003,2026-06-09,Payroll,-1000.00
+Q004,2026-06-09,Payroll Tax Payment,-250.00
+Q005,2026-06-30,Amazon,-100.00
+Q006,2026-06-30,PECO,-200.00
+Q007,2026-06-27,Bookkeeping Fee,-15.00
